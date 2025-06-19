@@ -4,6 +4,9 @@ from torchvision import models, transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
+from skimage.io import imread
+from skimage.color import rgb2gray
+from skimage.feature import canny
 from sklearn.neighbors import KNeighborsClassifier
 from collections import defaultdict
 import cv2
@@ -11,12 +14,14 @@ import torch
 torch.set_num_threads(1)
 torch.set_num_interop_threads(1)
 
-def extract_deep_feature(img, model, transform):
+def extract_feature(img, model, transform):
     """
     TODO: Extracts a deep feature vector from a image using the given model and transform.
     """
-    feat = img.copy()
-    return feat
+    mean_val = np.mean(img)
+    std_val = np.std(img)
+    edge_count = np.sum(canny(img))
+    return [mean_val, std_val, edge_count]
 
 def load_data_with_features(folder, model, transform):
     """
@@ -29,8 +34,12 @@ def load_data_with_features(folder, model, transform):
     for fname in files:
         label = fname.split('_')[0]
         img_path = os.path.join(folder, fname)
-        img = Image.open(img_path).convert('RGB')
-        feature = extract_deep_feature(img, model, transform)
+        # img = Image.open(img_path).convert('RGB')
+        img = imread(img_path)
+        if img.ndim == 3:
+            img = rgb2gray(img)
+            
+        feature = extract_feature(img, model, transform)
         X_features.append(feature)
         y_labels.append(label)
     return np.array(X_features), np.array(y_labels)
@@ -53,14 +62,17 @@ def live_webcam_demo(knn, model, transform, class_names, cam_id=0):
                 print("Failed to grab frame.")
                 break
 
-            # Convert to PIL Image and predict
-            img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            feature = extract_deep_feature(img, model, transform)
+            #TODO: Convert to PIL Image and predict
+            img = frame.copy()
+            if img.ndim == 3:
+                img = rgb2gray(img)
+
+            feature = extract_feature(img, model, transform)
             pred = knn.predict([feature])[0]
             last_prediction = f"Predicted: {pred}"
 
             # Overlay text using matplotlib
-            frame_rgb = np.array(img)
+            frame_rgb = np.array(frame)
             ax.clear()
             ax.imshow(frame_rgb)
             ax.axis('off')

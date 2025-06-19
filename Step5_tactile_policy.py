@@ -4,25 +4,28 @@ import time
 from lcm_msgs import RobotCommand, RobotStatus
 import numpy as np
 from PIL import Image
+from skimage.io import imread
+from skimage.color import rgb2gray
 import matplotlib.pyplot as plt
 from sklearn.neighbors import KNeighborsClassifier
-from Step3_texture_classify import extract_deep_feature
+from Step3_texture_classify import extract_feature
 
 # === Placeholder: Replace with your real classifier ===
 def classify_image(frame, model, transform, knn):
-    # For demo: always return region_a
-    # Replace with your model logic!
-    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    feature = extract_deep_feature(img, model, transform)
+    #TODO: Replace with the updated texture classifier!
+    # img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    img = frame.copy()
+    if img.ndim == 3:
+        img = rgb2gray(img)
+    feature = extract_feature(img, model, transform)
     pred = knn.predict([feature])[0]
-    if pred=="nut":
+    if pred=="bolt":
         sort_area = "region_a"
-    elif pred=="head":
+    elif pred=="plastic":
         sort_area = "region_b"
     elif pred=="fabrics":
         sort_area = "region_c"
     return sort_area, pred
-    # return "region_a"
 
 class PolicyNode:
     def __init__(self):
@@ -101,6 +104,7 @@ class PolicyNode:
                         self.state = "SEND_REGION_COMMAND"
                         self.completed = False  # Reset flag
 
+                #TODO: Modify next two states to achieve continuous object sorting
                 elif self.state == "SEND_REGION_COMMAND":
                     self.send_command(self.current_region)
                     print(f"[Policy] Sent command to {self.current_region}.")
@@ -109,8 +113,6 @@ class PolicyNode:
                 elif self.state == "DONE":
                     # Keep showing camera, or break if you want to stop after one cycle
                     pass
-
-                #TODO: Modify this part to handle multiple regions
 
                 time.sleep(0.1)
         finally:

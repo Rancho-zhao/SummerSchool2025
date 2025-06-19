@@ -13,7 +13,7 @@ jax==0.6.2
 jsonlines==4.0.0
 lcm==1.5.1
 matplotlib==3.10.3
-numpy==2.3.0
+numpy==2.2.6
 opencv_python==4.11.0.86
 opencv_python_headless==4.11.0.86
 orbax==0.1.9
@@ -38,3 +38,4 @@ torchvision==0.22.1
 tqdm==4.67.1
 transformers==4.52.4
 wandb==0.20.1
+scikit_image==0.25.2
