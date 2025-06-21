@@ -1,6 +1,7 @@
 import lcm
 import cv2
 import time
+import sys
 from lcm_msgs import RobotCommand, RobotStatus
 import numpy as np
 from PIL import Image
@@ -8,44 +9,41 @@ from skimage.io import imread
 from skimage.color import rgb2gray
 import matplotlib.pyplot as plt
 from sklearn.neighbors import KNeighborsClassifier
-from Step3_texture_classify import extract_feature
+from Step3_texture_classify import extract_feature, load_data_with_features
 
-# === Placeholder: Replace with your real classifier ===
+# TODO: Modify the function to with your real classifier
 def classify_image(frame, model, transform, knn):
-    #TODO: Replace with the updated texture classifier!
-    # img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     img = frame.copy()
     if img.ndim == 3:
         img = rgb2gray(img)
     feature = extract_feature(img, model, transform)
     pred = knn.predict([feature])[0]
-    if pred=="bolt":
+    if pred == "fabrics":
         sort_area = "region_a"
-    elif pred=="plastic":
+    elif pred == "metal":
         sort_area = "region_b"
-    elif pred=="fabrics":
+    elif pred == "plastics":
         sort_area = "region_c"
     return sort_area, pred
 
 class PolicyNode:
-    def __init__(self):
+    def __init__(self, camera_id=0):
+        self.camera_id = camera_id
         self.lc = lcm.LCM()
         self.lc.subscribe("ROBOT_STATUS", self.status_handler)
         self.completed = False
 
         self.state = "START"
         self.current_region = None
-        self.pred = None
+        self.pred = ""
 
         self.knn = KNeighborsClassifier(n_neighbors=1)
         self.model = None
         self.transform = None
 
         # Load training data features
-        from Step3_texture_classify import load_data_with_features
         X_train, y_train = load_data_with_features("data/train", self.model, self.transform)
         self.knn.fit(X_train, y_train)
-
 
     def status_handler(self, channel, data):
         msg = RobotStatus.decode(data)
@@ -60,13 +58,14 @@ class PolicyNode:
         self.lc.publish("ROBOT_COMMAND", msg.encode())
 
     def run(self):
-        cap = cv2.VideoCapture(9)  # Adjust if needed
+        cap = cv2.VideoCapture(self.camera_id)
         if not cap.isOpened():
-            print("[Policy] Failed to open camera!")
+            print(f"[Policy] Failed to open camera with ID {self.camera_id}!")
             return
-        plt.ion()  # Interactive mode
+
+        plt.ion()
         fig, ax = plt.subplots()
-        img_disp = None
+
         try:
             while True:
                 ret, frame = cap.read()
@@ -74,7 +73,6 @@ class PolicyNode:
                     print("[Policy] Camera read failed")
                     break
 
-                # Show real-time camera image
                 frame_rgb = np.array(frame)
                 ax.clear()
                 ax.imshow(frame_rgb)
@@ -83,7 +81,6 @@ class PolicyNode:
                         bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', pad=4))
                 plt.pause(0.001)
 
-                # Optional: break if figure closed by user
                 if not plt.fignum_exists(fig.number):
                     break
 
@@ -94,15 +91,13 @@ class PolicyNode:
                     self.state = "WAIT_GRASP_DONE"
 
                 elif self.state == "WAIT_GRASP_DONE":
-                    # Wait for the completion signal
-                    self.lc.handle_timeout(100)  # Check for LCM message every 100ms
+                    self.lc.handle_timeout(100)
                     if self.completed:
                         print("[Policy] Grasp completed! Classifying image...")
-                        # Classify the current frame
                         self.current_region, self.pred = classify_image(frame, self.model, self.transform, self.knn)
                         print(f"[Policy] Classified as: {self.current_region}")
                         self.state = "SEND_REGION_COMMAND"
-                        self.completed = False  # Reset flag
+                        self.completed = False
 
                 #TODO: Modify next two states to achieve continuous object sorting
                 elif self.state == "SEND_REGION_COMMAND":
@@ -111,15 +106,20 @@ class PolicyNode:
                     self.state = "DONE"
 
                 elif self.state == "DONE":
-                    # Keep showing camera, or break if you want to stop after one cycle
                     pass
 
                 time.sleep(0.1)
         finally:
             cap.release()
             plt.close(fig)
-            # cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    node = PolicyNode()
+    # Get camera ID from command-line argument or user input
+    if len(sys.argv) > 1:
+        cam_id = int(sys.argv[1])
+    else:
+        cam_id_input = input("Enter camera ID (default: 0): ").strip()
+        cam_id = int(cam_id_input) if cam_id_input else 0
+
+    node = PolicyNode(camera_id=cam_id)
     node.run()

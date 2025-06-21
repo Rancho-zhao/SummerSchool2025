@@ -5,9 +5,17 @@ import sys
 from lerobot.common.robots.so101_follower.so101_follower import SO101Follower
 from lerobot.common.robots.so101_follower.config_so101_follower import SO101FollowerConfig
 
+# Parse command-line arguments
+if len(sys.argv) < 2:
+    print("Usage: python script.py <robot_port> [camera_id]")
+    sys.exit(1)
+
+robot_port = sys.argv[1]
+camera_id = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+
 # Initialize robot configuration
 config = SO101FollowerConfig(
-    port="/dev/ttyACM0",  # Change to your actual port
+    port=robot_port,
     use_degrees=True,
 )
 time.sleep(2)
@@ -24,8 +32,7 @@ joint_positions = {
     "gripper.pos": 0,
 }
 
-# Parse camera ID from command-line argument or use default
-camera_id = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+# Initialize camera
 cap = cv2.VideoCapture(camera_id)
 if not cap.isOpened():
     print(f"❌ Unable to open camera with ID {camera_id}")
@@ -91,7 +98,6 @@ while True:
 
     # Send updated joint positions to robot
     robot.send_action(joint_positions)
-    # print("Sent joint positions:", joint_positions)
 
 # Cleanup
 cap.release()
