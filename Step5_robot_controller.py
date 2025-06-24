@@ -80,7 +80,7 @@ class RobotController:
         if region == "region_b":
             waypoint_pos["shoulder_pan.pos"] = -75
             region_pos["shoulder_pan.pos"] = -75
-        elif region == "region_c":
+        elif region == "region_a":
             waypoint_pos["shoulder_pan.pos"] = -100
             region_pos["shoulder_pan.pos"] = -100
 
