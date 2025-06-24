@@ -25,6 +25,11 @@ Then, you can run the following command to configure the environment.
 pip install -r requirements.txt
 ```
 
+Note: For Apple M1 - the pyrealsense2 will through an exception use the commands below to resolve it.
+```
+pip install pyrealsense2-macosx opencv-python
+```
+
 ## Step One: Tactile Sensor Manufacture and Test
 ### Manufacture
 Manufacture process is shown as video.
